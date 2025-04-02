@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bouncing Neon Balls Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            background-color: #000;
+            color: white;
+        }
+        
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 2;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+        }
+        
+        h1 {
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #00FFFF;
+            font-size: 24px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            text-shadow: 0 0 5px #FF00FF;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        button {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 2px solid #00FFFF;
+            border-radius: 5px;
+            padding: 8px 15px;
+            margin: 5px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-shadow: 0 0 5px #00FFFF;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            outline: none;
+            width: 100%;
+        }
+        
+        button:hover {
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 15px #00FFFF;
+        }
+        
+        #info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 2;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+            min-width: 200px;
+        }
+        
+        #info h2 {
+            margin-bottom: 10px;
+            font-size: 18px;
+            text-shadow: 0 0 5px #FFFF00;
+        }
+        
+        #info p {
+            margin-bottom: 5px;
+        }
+        
+        #toggleControls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 3;
+            font-size: 24px;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 5px;
+            text-shadow: 0 0 5px #00FFFF;
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            #controls {
+                width: 80%;
+                max-height: 80vh;
+                overflow-y: auto;
+                transform: translateX(-110%);
+                transition: transform 0.3s ease;
+            }
+            
+            #controls.visible {
+                transform: translateX(0);
+            }
+            
+            #toggleControls {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <button id="toggleControls">☰</button>
+    
+    <div id="controls">
+        <h1>Bouncing Neon Balls</h1>
+        
+        <div class="control-group">
+            <label for="ballCount">Number of Balls: <span id="ballCountValue">25</span></label>
+            <input type="range" id="ballCount" min="1" max="100" value="25">
+        </div>
+        
+        <div class="control-group">
+            <label for="ballSize">Ball Size: <span id="ballSizeValue">15</span></label>
+            <input type="range" id="ballSize" min="5" max="50" value="15">
+        </div>
+        
+        <div class="control-group">
+            <label for="ballSpeed">Ball Speed: <span id="ballSpeedValue">5</span></label>
+            <input type="range" id="ballSpeed" min="1" max="15" value="5">
+        </div>
+        
+        <div class="control-group">
+            <label for="glowIntensity">Glow Intensity: <span id="glowIntensityValue">20</span></label>
+            <input type="range" id="glowIntensity" min="0" max="50" value="20">
+        </div>
+        
+        <div class="control-group">
+            <label>Effects:</label>
+            <button id="toggleTrails">Toggle Trails</button>
+            <button id="toggleGravity">Toggle Gravity</button>
+            <button id="toggleCollisions">Toggle Collisions</button>
+            <button id="togglePulse">Toggle Pulse Effect</button>
+        </div>
+        
+        <div class="control-group">
+            <label>Actions:</label>
+            <button id="addBall">Add Ball</button>
+            <button id="resetBalls">Reset All</button>
+            <button id="toggleMouseControl">Toggle Mouse Control</button>
+        </div>
+    </div>
+    
+    <div id="info">
+        <h2>Demo Information</h2>
+        <p>FPS: <span id="fpsCounter">0</span></p>
+        <p>Ball Count: <span id="currentBallCount">0</span></p>
+        <p>Collisions: <span id="collisionCount">0</span></p>
+    </div>
+    
+    <script>
+        // Get DOM elements
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const controls = document.getElementById('controls');
+        const toggleControlsBtn = document.getElementById('toggleControls');
+        
+        // Control elements
+        const ballCountSlider = document.getElementById('ballCount');
+        const ballCountValue = document.getElementById('ballCountValue');
+        const ballSizeSlider = document.getElementById('ballSize');
+        const ballSizeValue = document.getElementById('ballSizeValue');
+        const ballSpeedSlider = document.getElementById('ballSpeed');
+        const ballSpeedValue = document.getElementById('ballSpeedValue');
+        const glowIntensitySlider = document.getElementById('glowIntensity');
+        const glowIntensityValue = document.getElementById('glowIntensityValue');
+        
+        // Buttons
+        const toggleTrailsBtn = document.getElementById('toggleTrails');
+        const toggleGravityBtn = document.getElementById('toggleGravity');
+        const toggleCollisionsBtn = document.getElementById('toggleCollisions');
+        const togglePulseBtn = document.getElementById('togglePulse');
+        const addBallBtn = document.getElementById('addBall');
+        const resetBallsBtn = document.getElementById('resetBalls');
+        const toggleMouseControlBtn = document.getElementById('toggleMouseControl');
+        
+        // Info elements
+        const fpsCounter = document.getElementById('fpsCounter');
+        const currentBallCount = document.getElementById('currentBallCount');
+        const collisionCounter = document.getElementById('collisionCount');
+        
+        // Configuration settings
+        const config = {
+            ballCount: 25,
+            ballSize: 15,
+            ballSpeed: 5,
+            glowIntensity: 20,
+            showTrails: false,
+            useGravity: false,
+            enableCollisions: false,
+            enablePulse: true,
+            mouseControl: false
+        };
+        
+        // Stats
+        const stats = {
+            fps: 0,
+            collisions: 0,
+            lastFrameTime: 0,
+            frameCount: 0,
+            lastFpsUpdate: 0
+        };
+        
+        // Neon color array
+        const colorArray = [
+            "#00FFFF", "#FF00FF", "#00FF00", "#FFFF00", "#FF4500",
+            "#FF1493", "#FF69B4", "#8A2BE2", "#1E90FF", "#FF8C00",
+            "#7DF9FF", "#39FF14", "#FB33DB", "#FE59C2", "#F535AA"
+        ];
+        
+        // Resize canvas to fill window
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        // Initialize resizing
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        // Circle constructor function with enhanced properties
+        function Circle(x, y, radius, dx, dy, color) {
+            this.x = x;
+            this.y = y;
+            this.radius = radius;
+            this.originalRadius = radius;
+            this.dx = dx;
+            this.dy = dy;
+            this.color = color || colorArray[Math.floor(Math.random() * colorArray.length)];
+            this.mass = radius * radius * Math.PI; // Mass proportional to area
+            this.pulseDirection = 1;
+            this.pulseAmount = 0;
+            this.trail = [];
+            this.maxTrailLength = 10;
+            this.isMouseControlled = false;
+            
+            // Draw method with enhanced visuals
+            this.draw = function() {
+                // Draw trail if enabled
+                if (config.showTrails && this.trail.length > 0) {
+                    for (let i = 0; i < this.trail.length; i++) {
+                        const point = this.trail[i];
+                        const alpha = i / this.trail.length * 0.5;
+                        const size = this.radius * (i / this.trail.length);
+                        
+                        ctx.beginPath();
+                        ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(${point.r}, ${point.g}, ${point.b}, ${alpha})`;
+                        ctx.fill();
+                    }
+                }
+                
+                // Draw the main circle
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius + this.pulseAmount, 0, Math.PI * 2);
+                
+                // Apply neon glow effect
+                ctx.shadowBlur = config.glowIntensity;
+                ctx.shadowColor = this.color;
+                
+                // Create a gradient fill
+                const gradient = ctx.createRadialGradient(
+                    this.x, this.y, 0,
+                    this.x, this.y, this.radius + this.pulseAmount
+                );
+                
+                gradient.addColorStop(0, 'white');
+                gradient.addColorStop(0.4, this.color);
+                gradient.addColorStop(1, 'rgba(0,0,0,0.5)');
+                
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // Draw inner details
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, (this.radius + this.pulseAmount) * 0.6, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Draw mouse control indicator
+                if (this.isMouseControlled) {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius * 1.2, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'white';
+                    ctx.setLineDash([5, 5]);
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+                
+                // Reset shadow
+                ctx.shadowBlur = 0;
+            };
+            
+            // Update method with enhanced physics
+            this.update = function() {
+                // Skip physics for mouse controlled circles
+                if (this.isMouseControlled) {
+                    this.trail = [];
+                    this.updatePulse();
+                    this.draw();
+                    return;
+                }
+                
+                // Store position for trail
+                if (config.showTrails) {
+                    // Convert hex color to RGB for trail
+                    let r, g, b;
+                    if (this.trail.length === 0 || 
+                        Math.abs(this.x - this.trail[0].x) > 2 || 
+                        Math.abs(this.y - this.trail[0].y) > 2) {
+                        
+                        // Convert hex to rgb
+                        const hex = this.color.replace('#', '');
+                        r = parseInt(hex.substring(0, 2), 16);
+                        g = parseInt(hex.substring(2, 4), 16);
+                        b = parseInt(hex.substring(4, 6), 16);
+                        
+                        this.trail.unshift({
+                            x: this.x,
+                            y: this.y,
+                            r: r,
+                            g: g,
+                            b: b
+                        });
+                        
+                        if (this.trail.length > this.maxTrailLength) {
+                            this.trail.pop();
+                        }
+                    }
+                } else {
+                    this.trail = [];
+                }
+                
+                // Wall collision physics
+                if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
+                    this.dx = -this.dx;
+                    
+                    // Add slight vertical variation
+                    this.dy += (Math.random() - 0.5) * 0.5;
+                }
+                
+                if (this.y + this.radius > canvas.height || this.y - this.radius < 0) {
+                    this.dy = -this.dy;
+                    
+                    // Add slight horizontal variation
+                    this.dx += (Math.random() - 0.5) * 0.5;
+                }
+                
+                // Apply gravity if enabled
+                if (config.useGravity) {
+                    this.dy += 0.1;
+                }
+                
+                // Keep within canvas boundaries
+                if (this.x - this.radius < 0) {
+                    this.x = this.radius;
+                }
+                if (this.x + this.radius > canvas.width) {
+                    this.x = canvas.width - this.radius;
+                }
+                if (this.y - this.radius < 0) {
+                    this.y = this.radius;
+                }
+                if (this.y + this.radius > canvas.height) {
+                    this.y = canvas.height - this.radius;
+                }
+                
+                // Update position
+                this.x += this.dx;
+                this.y += this.dy;
+                
+                // Limit maximum velocity
+                const maxVelocity = 12;
+                const currentVelocity = Math.sqrt(this.dx * this.dx + this.dy * this.dy);
+                
+                if (currentVelocity > maxVelocity) {
+                    this.dx = (this.dx / currentVelocity) * maxVelocity;
+                    this.dy = (this.dy / currentVelocity) * maxVelocity;
+                }
+                
+                // Update pulse effect
+                this.updatePulse();
+                
+                // Draw the circle
+                this.draw();
+            };
+            
+            // Handle collisions between circles
+            this.handleCollision = function(otherCircle) {
+                const dx = this.x - otherCircle.x;
+                const dy = this.y - otherCircle.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Check if circles are colliding
+                if (distance < this.radius + otherCircle.radius) {
+                    stats.collisions++;
+                    
+                    // Calculate collision normal
+                    const nx = dx / distance;
+                    const ny = dy / distance;
+                    
+                    // Calculate relative velocity
+                    const dvx = this.dx - otherCircle.dx;
+                    const dvy = this.dy - otherCircle.dy;
+                    
+                    // Calculate impulse scalar
+                    const velocityAlongNormal = dvx * nx + dvy * ny;
+                    
+                    // If circles are moving away from each other, don't apply impulse
+                    if (velocityAlongNormal > 0) return;
+                    
+                    // Calculate impulse scalar
+                    const e = 0.8; // Coefficient of restitution (bounciness)
+                    const impulseScalar = -(1 + e) * velocityAlongNormal / 
+                                         (1/this.mass + 1/otherCircle.mass);
+                    
+                    // Apply impulse
+                    const impulseX = impulseScalar * nx;
+                    const impulseY = impulseScalar * ny;
+                    
+                    this.dx += impulseX / this.mass;
+                    this.dy += impulseY / this.mass;
+                    otherCircle.dx -= impulseX / otherCircle.mass;
+                    otherCircle.dy -= impulseY / otherCircle.mass;
+                    
+                    // Prevent sticking by separating circles
+                    const overlap = this.radius + otherCircle.radius - distance;
+                    const separationX = nx * overlap * 0.5;
+                    const separationY = ny * overlap * 0.5;
+                    
+                    this.x += separationX;
+                    this.y += separationY;
+                    otherCircle.x -= separationX;
+                    otherCircle.y -= separationY;
+                }
+            };
+            
+            // Update pulse effect
+            this.updatePulse = function() {
+                if (config.enablePulse) {
+                    this.pulseAmount += 0.05 * this.pulseDirection;
+                    if (this.pulseAmount > 2 || this.pulseAmount < -0.5) {
+                        this.pulseDirection *= -1;
+                    }
+                } else {
+                    this.pulseAmount = 0;
+                }
+            };
+            
+            // Set position manually (for mouse control)
+            this.setPosition = function(x, y) {
+                // Store previous position for momentum calculation
+                const prevX = this.x;
+                const prevY = this.y;
+                
+                // Update position
+                this.x = x;
+                this.y = y;
+                
+                // Calculate implied velocity from mouse movement
+                this.dx = (this.x - prevX) * 0.3;
+                this.dy = (this.y - prevY) * 0.3;
+            };
+        }
+        
+        // Array to store all circles
+        let circles = [];
+        let mouseControlledCircle = null;
+        
+        // Initialize circles
+        function initCircles() {
+            circles = [];
+            
+            for (let i = 0; i < config.ballCount; i++) {
+                addRandomCircle();
+            }
+            
+            // Update UI
+            currentBallCount.textContent = circles.length;
+        }
+        
+        // Add a random circle
+        function addRandomCircle() {
+            const radius = Math.random() * config.ballSize + 5;
+            const x = Math.random() * (canvas.width - radius * 2) + radius;
+            const y = Math.random() * (canvas.height - radius * 2) + radius;
+            const speedMultiplier = config.ballSpeed / 5;
+            const dx = (Math.random() - 0.5) * 10 * speedMultiplier;
+            const dy = (Math.random() - 0.5) * 10 * speedMultiplier;
+            
+            const color = colorArray[Math.floor(Math.random() * colorArray.length)];
+            
+            circles.push(new Circle(x, y, radius, dx, dy, color));
+        }
+        
+        // Main animation loop
+        function animate(timestamp) {
+            requestAnimationFrame(animate);
+            
+            // Calculate FPS
+            if (!stats.lastFrameTime) {
+                stats.lastFrameTime = timestamp;
+                stats.lastFpsUpdate = timestamp;
+            }
+            
+            const elapsed = timestamp - stats.lastFrameTime;
+            stats.lastFrameTime = timestamp;
+            
+            stats.frameCount++;
+            
+            // Update FPS counter every 500ms
+            if (timestamp - stats.lastFpsUpdate > 500) {
+                stats.fps = Math.round(stats.frameCount * 1000 / (timestamp - stats.lastFpsUpdate));
+                fpsCounter.textContent = stats.fps;
+                stats.frameCount = 0;
+                stats.lastFpsUpdate = timestamp;
+                collisionCounter.textContent = stats.collisions;
+                currentBallCount.textContent = circles.length;
+            }
+            
+            // Clear canvas with trail effect
+            if (config.showTrails) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            // Update all circles
+            for (let i = 0; i < circles.length; i++) {
+                circles[i].update();
+                
+                // Check circle-circle collisions
+                if (config.enableCollisions) {
+                    for (let j = i + 1; j < circles.length; j++) {
+                        circles[i].handleCollision(circles[j]);
+                    }
+                }
+            }
+        }
+        
+        // Initialize controls
+        function initControls() {
+            // Ball count slider
+            ballCountSlider.addEventListener('input', function() {
+                config.ballCount = parseInt(this.value);
+                ballCountValue.textContent = config.ballCount;
+                
+                // Adjust circle count
+                if (circles.length < config.ballCount) {
+                    // Add more circles
+                    while (circles.length < config.ballCount) {
+                        addRandomCircle();
+                    }
+                } else if (circles.length > config.ballCount) {
+                    // Remove excess circles
+                    circles = circles.slice(0, config.ballCount);
+                }
+                
+                currentBallCount.textContent = circles.length;
+            });
+            
+            // Ball size slider
+            ballSizeSlider.addEventListener('input', function() {
+                config.ballSize = parseInt(this.value);
+                ballSizeValue.textContent = config.ballSize;
+                
+                // Update sizes of existing circles
+                circles.forEach(circle => {
+                    if (!circle.isMouseControlled) {
+                        const sizeRatio = config.ballSize / circle.originalRadius;
+                        circle.radius = circle.originalRadius * (config.ballSize / 15);
+                    }
+                });
+            });
+            
+            // Ball speed slider
+            ballSpeedSlider.addEventListener('input', function() {
+                config.ballSpeed = parseInt(this.value);
+                ballSpeedValue.textContent = config.ballSpeed;
+                
+                // Update speeds of existing circles
+                const speedMultiplier = config.ballSpeed / 5;
+                circles.forEach(circle => {
+                    if (!circle.isMouseControlled) {
+                        const speed = Math.sqrt(circle.dx * circle.dx + circle.dy * circle.dy);
+                        if (speed > 0) {
+                            circle.dx = circle.dx / speed * (Math.random() * 5 + 5) * speedMultiplier;
+                            circle.dy = circle.dy / speed * (Math.random() * 5 + 5) * speedMultiplier;
+                        }
+                    }
+                });
+            });
+            
+            // Glow intensity slider
+            glowIntensitySlider.addEventListener('input', function() {
+                config.glowIntensity = parseInt(this.value);
+                glowIntensityValue.textContent = config.glowIntensity;
+            });
+            
+            // Effect toggle buttons
+            toggleTrailsBtn.addEventListener('click', function() {
+                config.showTrails = !config.showTrails;
+                this.textContent = config.showTrails ? 'Disable Trails' : 'Enable Trails';
+            });
+            
+            toggleGravityBtn.addEventListener('click', function() {
+                config.useGravity = !config.useGravity;
+                this.textContent = config.useGravity ? 'Disable Gravity' : 'Enable Gravity';
+            });
+            
+            toggleCollisionsBtn.addEventListener('click', function() {
+                config.enableCollisions = !config.enableCollisions;
+                this.textContent = config.enableCollisions ? 'Disable Collisions' : 'Enable Collisions';
+            });
+            
+            togglePulseBtn.addEventListener('click', function() {
+                config.enablePulse = !config.enablePulse;
+                this.textContent = config.enablePulse ? 'Disable Pulse Effect' : 'Enable Pulse Effect';
+            });
+            
+            // Action buttons
+            addBallBtn.addEventListener('click', function() {
+                addRandomCircle();
+                currentBallCount.textContent = circles.length;
+            });
+            
+            resetBallsBtn.addEventListener('click', function() {
+                stats.collisions = 0;
+                initCircles();
+            });
+            
+            toggleMouseControlBtn.addEventListener('click', function() {
+                config.mouseControl = !config.mouseControl;
+                this.textContent = config.mouseControl ? 'Disable Mouse Control' : 'Enable Mouse Control';
+                
+                if (config.mouseControl) {
+                    // Create a mouse-controlled circle if it doesn't exist
+                    if (!mouseControlledCircle) {
+                        const radius = config.ballSize;
+                        mouseControlledCircle = new Circle(
+                            canvas.width / 2,
+                            canvas.height / 2,
+                            radius,
+                            0, 0,
+                            '#FFFFFF'
+                        );
+                        mouseControlledCircle.isMouseControlled = true;
+                        circles.push(mouseControlledCircle);
+                    }
+                } else if (mouseControlledCircle) {
+                    // Remove the mouse-controlled circle
+                    const index = circles.indexOf(mouseControlledCircle);
+                    if (index !== -1) {
+                        circles.splice(index, 1);
+                    }
+                    mouseControlledCircle = null;
+                }
+                
+                currentBallCount.textContent = circles.length;
+            });
+            
+            // Toggle controls button for mobile
+            toggleControlsBtn.addEventListener('click', function() {
+                controls.classList.toggle('visible');
+            });
+        }
+        
+        // Mouse move handler
+        function handleMouseMove(event) {
+            if (config.mouseControl && mouseControlledCircle) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = event.clientX - rect.left;
+                const mouseY = event.clientY - rect.top;
+                
+                mouseControlledCircle.setPosition(mouseX, mouseY);
+            }
+        }
+        
+        // Touch move handler
+        function handleTouchMove(event) {
+            if (config.mouseControl && mouseControlledCircle) {
+                event.preventDefault();
+                const rect = canvas.getBoundingClientRect();
+                const touchX = event.touches[0].clientX - rect.left;
+                const touchY = event.touches[0].clientY - rect.top;
+                
+                mouseControlledCircle.setPosition(touchX, touchY);
+            }
+        }
+        
+        // Initialize everything
+        function init() {
+            initCircles();
+            initControls();
+            
+            // Add event listeners
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+            
+            // Start animation
+            animate();
+        }
+        
+        // Start the demo
+        init();
+    </script>
+</body>
+</html>
